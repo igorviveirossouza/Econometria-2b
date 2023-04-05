@@ -316,7 +316,7 @@ uschange %>%
 
   # Para acessar os dados do FRED você deve gerar sua própria
   # API no site 
-  API.key <- 'colo_sua_chave_aqui'
+  API.key <- '76489ce521ce14d034d9fc261e24dc30'
   fredr_set_key(API.key)
   
   fredr(
@@ -534,10 +534,66 @@ uschange %>%
   tsdiag(ipca03)
   plot(ipca03$residuals)
   acf(ipca03$residuals)
-  
-  
-  AIC(ipca01,ipca02,ipca03)
-  BIC(ipca01,ipca02,ipca03)
+# Critérios de informação para seleção de modelos:  
+  stats::AIC(ipca01,ipca02,ipca03)
+  stats::BIC(ipca01,ipca02,ipca03)
+  ICglm::HQIC(ipca01); ICglm::HQIC(ipca02);ICglm::HQIC(ipca03)
 
-  plot(forecast(ipca01))
-    
+# Previsão com modelo escolhido 
+  plot(forecast(ipca01,h=10))
+  
+  
+## Modelando o CPI USA   --------------------------------------------------- 
+  fredr(
+    series_id = "CPIAUCSL",
+    observation_start = as.Date("1947-01-01") 
+    # frequency = "q",
+    # aggregation_method = "avg",
+    # units = "log"
+  ) -> CPI_USA_SA_FRED
+
+  # A série acima é: 
+  #  Consumer Price Index for All Urban Consumers: 
+  #  All Items in U.S. City Average (CPIAUCSL)	- Seasonally Adjusted
+
+  
+  CPI_USA_index <- ts(CPI_USA_SA_FRED$value,frequency = 12,start = c(1947,1))
+  plot(CPI_USA_index)
+  plot(diff(log(CPI_USA_index) ))
+  
+  # A série claramente apresenta um prolema de mensuração antes da década de 80.
+  # Vamos cortar nossa análise nesse período:
+  
+  (CPI_USA_inflation <- CPI_USA_index%>%diff()%>%window(start=c(1980,1)))%>%
+      plot()
+  
+  par(mfrow=c(1,2));acf(CPI_USA_inflation);pacf(CPI_USA_inflation)
+  
+  # AR(1)
+  cpi_usa_ARMA10 <- CPI_USA_inlation%>%arima(order = c(1,0,0))
+  
+  # ARMA, mas qual? Vamos começar com o processo mais simples: ARMA(1,1)
+  cpi_usa_ARMA11 <- CPI_USA_inlation%>%arima(order = c(1,0,1))
+  
+  tab_model(
+    cpi_usa_ARMA10,
+    cpi_usa_ARMA11,
+    show.ci = F,
+    show.aic = T,
+    show
+  )
+
+## Modelando a taxa de crescimento do GDP-USA ------------------------------
+  fredr(
+    series_id = "A939RX0Q048SBEA",
+    observation_start = as.Date("1947-01-01") 
+    # frequency = "q",
+    # aggregation_method = "avg",
+    # units = "log"
+  ) -> GDP_USA_FRED
+  
+  USA_GDP_GR <- ts(diff(log(GDP_USA_FRED$value)),start = c(1947,2),frequency = 4)
+  plot(USA_GDP_GR)
+  acf(USA_GDP_GR);pacf(USA_GDP_GR)
+  
+# Qual modelo adequado?  
