@@ -316,7 +316,7 @@ uschange %>%
 
   # Para acessar os dados do FRED você deve gerar sua própria
   # API no site 
-  API.key <- '76489ce521ce14d034d9fc261e24dc30'
+  API.key <- 'coloque sua chave'
   fredr_set_key(API.key)
   
   fredr(
@@ -583,17 +583,5 @@ uschange %>%
     show
   )
 
-## Modelando a taxa de crescimento do GDP-USA ------------------------------
-  fredr(
-    series_id = "A939RX0Q048SBEA",
-    observation_start = as.Date("1947-01-01") 
-    # frequency = "q",
-    # aggregation_method = "avg",
-    # units = "log"
-  ) -> GDP_USA_FRED
-  
-  USA_GDP_GR <- ts(diff(log(GDP_USA_FRED$value)),start = c(1947,2),frequency = 4)
-  plot(USA_GDP_GR)
-  acf(USA_GDP_GR);pacf(USA_GDP_GR)
-  
+
 # Qual modelo adequado?  
