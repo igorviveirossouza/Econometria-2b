@@ -495,12 +495,49 @@ uschange %>%
   forecast(Modelo.decomposicao)
   
   cbind(l_airpassCompAdd$random,residuo)    
-  
+
   ( 
-      $resid
+    $resid
   )%>%plot(,lwd=2)
   par(new=T)
   plot(l_airpassCompAdd$random,col=2,lty=2)
+  
+  
+# Modelos ARIMA -----------------------------------------------------------
 
+  autoplot(IPCA_atual)
+  par(mfrow=c(2,1));acf(IPCA_atual);pacf(IPCA_atual)
+  
+  ipca01 <- arima(IPCA_atual,order=c(1,0,0))
+  
+  # Minha série é um RB? 
+  Box.test(IPCA_atual, lag = 1, type = "Ljung")
   
   
+  ipca01
+  tsdiag(ipca01)
+  par(mfrow=c(1,2))
+  acf(ipca01$residuals)
+  pacf(ipca01$residuals)
+  #Ljung-Box: Testa se a Autocorrelação de é igual a zero, H0: Gamma_k = 0.
+  
+  #Outros modelos
+  ipca02 <- arima(IPCA_atual,order=c(0,0,4))
+  ipca03 <- arima(IPCA_atual,order=c(1,0,1))
+  
+  ipca02
+  tsdiag(ipca02)
+  plot(ipca02$residuals)
+  acf(ipca02$residuals)
+  
+  ipca03
+  tsdiag(ipca03)
+  plot(ipca03$residuals)
+  acf(ipca03$residuals)
+  
+  
+  AIC(ipca01,ipca02,ipca03)
+  BIC(ipca01,ipca02,ipca03)
+
+  plot(forecast(ipca01))
+    
