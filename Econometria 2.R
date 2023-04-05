@@ -285,9 +285,6 @@ uschange %>%
   # Teste Reset de especificação de modelos:
   resettest(mod02)
   
-  
-  
-  
   # Update de Lags do IPCA:
   (mod03 <- update(mod02, ~ .  + L(ipca,2)))%>%summary()
   reset(mod03)
@@ -317,6 +314,8 @@ uschange %>%
   
   Cambio_atual 
 
+  # Para acessar os dados do FRED você deve gerar sua própria
+  # API no site 
   API.key <- '76489ce521ce14d034d9fc261e24dc30'
   fredr_set_key(API.key)
   
@@ -328,10 +327,31 @@ uschange %>%
     # units = "log"
   ) -> CPI_USA_FRED
   
-# Explicação da série:
-#     Units: Growth rate previous period, Not Seasonally Adjusted
+  # Explicação da série:
+  #     Units: Growth rate previous period, Not Seasonally Adjusted  
+  CPI_USA <- ts(CPI_USA_FRED$value,start = c(2000,01),frequency = 12)
+  plot(CPI_USA)
+  CPI_index   <- NULL; CPI_index[1] <- 100
+  for(i in 2:length(CPI_USA)){
+    CPI_index[i] <- CPI_index[i-1]*(1+CPI_USA[i]/100)
+  }
+  CPI_index <- ts(CPI_index,start = c(2000,01),frequency = 12)
+  
+  par(mfrow=c(2,1));plot(IPCA_index);plot(CPI_index,col=2)
+  PPP <- IPCA_index/CPI_index
+  Cambio_atual <- ts(Cambio_atual$value,frequency = 12,start = c(2000,01))
+  par(mfrow=c(2,1));plot(PPP);plot(Cambio_atual)
+  
+  (ruido <- log(Cambio_atual) - log(PPP))%>%plot()
+  acf(ruido,col=2,lwd=2);pacf(ruido,col=2,lwd=2)
+  
+  par(mfrow=c(2,1));plot(ruido);plot(Cambio_atual)
   
   
+  par(mfrow=c(2,2))
+  acf(ruido,col=2,lwd=2);pacf(ruido,col=2,lwd=2)
+  acf(Cambio_atual,col=2,lwd=3);pacf(Cambio_atual,col=2,lwd=3)
+    
 # Simulação de modelos aditivos e multiplicativos -------------------------
   n     <- 251
   betaT <- .5
@@ -484,14 +504,3 @@ uschange %>%
 
   
   
-## ---- Teste de código 1
-  data(cars)
-  plot(cars)
-
-# Teste de código 2 -------------------------------------------------------
-plot(cars,col=2)
-
-## ---- Teste de código 3
-library(AER)
-data("Journals")
-plot(Journals)
