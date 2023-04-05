@@ -316,7 +316,7 @@ uschange %>%
 
   # Para acessar os dados do FRED você deve gerar sua própria
   # API no site 
-  API.key <- '76489ce521ce14d034d9fc261e24dc30'
+  API.key <- 'colo_sua_chave_aqui'
   fredr_set_key(API.key)
   
   fredr(
