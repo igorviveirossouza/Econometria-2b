@@ -1,10 +1,13 @@
 # Set UP ------------------------------------------------------------------
+rm(list=ls())
 
 # Utilidades
 if(!require(stringr)){install.packages("stringr")&require(stringr);require(stringr)}
 if(!require(sjPlot)){install.packages("sjPlot")&require(sjPlot);require(sjPlot)}
 if(!require(tidyverse)){install.packages("tidyverse")&require(tidyverse);require(tidyverse)}
 if(!require(AER)){install.packages("AER")&require(AER);require(AER)}
+if(!require(ICglm)){install.packages("ICglm")&require(ICglm);require(ICglm)}
+if(!require(lubridate)){install.packages("lubridate")&require(lubridate);require(lubridate)}
 
 # Pacotes de Séries Temporais
 if(!require(urca)){install.packages("urca")&require(urca);require(urca)}
@@ -21,8 +24,6 @@ if(!require(vars)){install.packages("vars")&require(vars);require(vars)}
 if(!require(BETS)){install.packages("BETS")&require(BETS);require(BETS)}
 if(!require(fredr)){install.packages("fredr")&require(fredr);require(fredr)}
 
-
-
 # Pacote para puxar informações do IBGE
 if(!require(ecoseries)){install.packages("ecoseries")&require(ecoseries);require(ecoseries)}
 if(!require(caschrono)){install.packages("caschrono")&require(caschrono);require(caschrono)}
@@ -35,6 +36,8 @@ if(!require(patchwork)){install.packages("patchwork")&require(patchwork);require
 # Pacotes com exmeplo de conjuntos de dados
 if(!require(fpp2)){install.packages("fpp2")&require(fpp2);require(fpp2)}
 
+#Séries financeiras:
+if(!require(quantmod)){install.packages("quantmod")&require(quantmod);require(quantmod)}
 
 par.ori <- par(no.readonly = T)
 
@@ -316,7 +319,7 @@ uschange %>%
 
   # Para acessar os dados do FRED você deve gerar sua própria
   # API no site 
-  API.key <- 'coloque sua chave'
+  API.key <- '76489ce521ce14d034d9fc261e24dc30'
   fredr_set_key(API.key)
   
   fredr(
@@ -464,7 +467,7 @@ uschange %>%
 #  preditor do forecast:
   forecast(l_airpassCompAdd)
 
-# Podesríamos usar regressão contra o termo de tendência e a sazonalidade com o
+# Poderíamos usar regressão contra o termo de tendência e a sazonalidade com o
 # comando a seguir:  
   plot(tslm(log(airpass) ~ trend + season)$residuals)
   plot(l_airpassCompAdd$random)  
@@ -490,15 +493,15 @@ uschange %>%
                               + BASE_FORECAST[,'Media_Movel'],data=BASE_FORECAST)
   
   
-  autoplot(forecast::naive(log(airpass), h = 20)) + autoplot(forecast::snaive(log(airpass), h = 20))
+  autoplot(forecast::naive(log(airpass), h = 20)) + 
+    autoplot(forecast::snaive(log(airpass), h = 20))
   
   forecast(Modelo.decomposicao)
   
   cbind(l_airpassCompAdd$random,residuo)    
 
-  ( 
-    $resid
-  )%>%plot(,lwd=2)
+  Modelo.decomposicao$resid%>%
+    plot(,lwd=2)
   par(new=T)
   plot(l_airpassCompAdd$random,col=2,lty=2)
   
@@ -566,22 +569,220 @@ uschange %>%
   
   (CPI_USA_inflation <- CPI_USA_index%>%diff()%>%window(start=c(1980,1)))%>%
       plot()
+  # Notem um comportamento heterocedástico da série. Vamos tomar o log e 
+  # verficar se há mélhoras:
   
-  par(mfrow=c(1,2));acf(CPI_USA_inflation);pacf(CPI_USA_inflation)
+  (CPI_USA_inflation_log <- CPI_USA_index%>%log()%>%diff()%>%
+      window(start=c(1980,1)))%>% plot()
   
-  # AR(1)
-  cpi_usa_ARMA10 <- CPI_USA_inlation%>%arima(order = c(1,0,0))
+  # periodo <- c("1980-01-01/1999-05-01")
+  # chart.TimeSeries(CPI_USA_inflation,period.areas = periodo,
+  #                  period.color = 'lightgrey')
+  # chart.TimeSeries(CPI_USA_inflation_log)
+
+  # FAC's e FACP's
+  par(mfrow=c(2,2))
+  acf(CPI_USA_inflation);pacf(CPI_USA_inflation)
+  acf(CPI_USA_inflation_log);pacf(CPI_USA_inflation_log)
   
+
   # ARMA, mas qual? Vamos começar com o processo mais simples: ARMA(1,1)
-  cpi_usa_ARMA11 <- CPI_USA_inlation%>%arima(order = c(1,0,1))
+  cpi_usa_ARMA11 <- CPI_USA_inflation_log%>%arima(order = c(1,0,1))
+  cpi_usa_ARMA12 <- CPI_USA_inflation_log%>%arima(order = c(1,0,2))
+  cpi_usa_ARMA21 <- CPI_USA_inflation_log%>%arima(order = c(2,0,1))
+  cpi_usa_ARMA22 <- CPI_USA_inflation_log%>%arima(order = c(2,0,2))
+
+  # Analisando a estabilidade dos modelos:
+    # IMPORTANTE: Notem que aqui o gráfico coloca o INVERSO das raízes do 
+    # polinômio. Logo se as raízes do polinômio têm de estar fora do círculo 
+    # unitário, as raízes inversas têm de estar dentro!!!!
+  plot(cpi_usa_ARMA11)
+  plot(cpi_usa_ARMA12)
+  plot(cpi_usa_ARMA21)
+  plot(cpi_usa_ARMA22)
+
+    # Todos os modelos são estáveis?
   
+  # Análise dos resíduos:
+  par(mfrow=c(2,2))
+  plot(cpi_usa_ARMA11$residuals)
+  plot(cpi_usa_ARMA12$residuals)
+  plot(cpi_usa_ARMA21$residuals)
+  plot(cpi_usa_ARMA22$residuals)
+
+  par(mfrow=c(2,2))
+  acf(cpi_usa_ARMA11$residuals)
+  acf(cpi_usa_ARMA12$residuals)
+  acf(cpi_usa_ARMA21$residuals)
+  acf(cpi_usa_ARMA22$residuals)
+  
+  pacf(cpi_usa_ARMA11$residuals)
+  pacf(cpi_usa_ARMA12$residuals)
+  pacf(cpi_usa_ARMA21$residuals)
+  pacf(cpi_usa_ARMA22$residuals)
+  
+  
+        
   tab_model(
-    cpi_usa_ARMA10,
     cpi_usa_ARMA11,
+    cpi_usa_ARMA12,
+    cpi_usa_ARMA21,
+    cpi_usa_ARMA22,
     show.ci = F,
     show.aic = T,
-    show
+    show.r2 = T
   )
 
+  
+  
+stats::AIC(cpi_usa_ARMA11,
+           cpi_usa_ARMA12,
+           cpi_usa_ARMA21,
+           cpi_usa_ARMA22)
 
+stats::BIC(cpi_usa_ARMA11,
+          cpi_usa_ARMA12,
+          cpi_usa_ARMA21,
+          cpi_usa_ARMA22)  
+
+# E um componente MA(3)?
+
+cpi_usa_ARMA13 <- CPI_USA_inflation_log%>%arima(order = c(1,0,3))
+cpi_usa_ARMA23 <- CPI_USA_inflation_log%>%arima(order = c(2,0,3))
+plot(cpi_usa_ARMA13)
+plot(cpi_usa_ARMA23)
+tab_model(cpi_usa_ARMA13,
+          cpi_usa_ARMA23,
+          show.ci = F,
+          show.aic = T)
+
+
+#ARMA(p,q) ou AR(3)?
+cpi_usa_ARMA30 <- CPI_USA_inflation_log%>%arima(order = c(3,0,0))  
+cpi_usa_ARMA32 <- CPI_USA_inflation_log%>%arima(order = c(3,0,2))  
+
+plot(cpi_usa_ARMA30)
+plot(cpi_usa_ARMA32)
+tab_model(cpi_usa_ARMA30,
+          cpi_usa_ARMA32,
+          show.ci = F,
+          show.aic = T)
+
+stats::AIC(cpi_usa_ARMA11,
+           cpi_usa_ARMA12,
+           cpi_usa_ARMA21,
+           cpi_usa_ARMA22,
+           cpi_usa_ARMA23,
+           cpi_usa_ARMA30)
+
+stats::BIC(cpi_usa_ARMA11,
+           cpi_usa_ARMA12,
+           cpi_usa_ARMA21,
+           cpi_usa_ARMA22
+           cpi_usa_ARMA23,
+           cpi_usa_ARMA30)
+
+require()  
 # Qual modelo adequado?  
+
+
+
+# Raízes unitárias --------------------------------------------------------
+
+
+# Dados de PIB (Nominal)
+PIB_anual <- BETSget(1207,from = "1962-12-31")
+PIB_anual <- PIB_anual[,2]%>%ts(start="1962")
+
+PIB_trim_desaz  <- BETSget(22109,from = "1995-01-01") # Pib Real
+
+par(mfrow=c(1,2)); plot(PIB_anual); plot(PIB_trim_desaz)
+
+# Vamos deflacionar o PIB pelo IGP-DI
+IGP_DI_mes    <- BETSget(code=c(190),  from = "1962-01-01")
+
+# Correção do IGP-DI: 
+IGP_DI_mes[which(IGP_DI_mes$date=="1994-07-01"),2] <- 24.71
+IGP_DI_mes|>filter(date=="1994-07-01")
+# Transforma em TS:
+IGP_DI_mes    <- IGP_DI_mes[,2]%>%ts(start=c(1962,1),frequency=12)
+
+# Vamos construir a série em número índice:
+IGP_DI_INDEX_mes <- NULL; IGP_DI_INDEX_mes[1] <- 100
+for(i in 1:length(IGP_DI_mes)){
+  IGP_DI_INDEX_mes[(i+1)] <- IGP_DI_INDEX_mes[i]*(1+IGP_DI_mes[i]/100)
+}
+
+IGP_DI_INDEX_mes <- IGP_DI_INDEX_mes%>%ts(frequency = 12,start = c(1961,12))
+g1 <- autoplot(IGP_DI_INDEX_mes, main = "Índice")
+g2 <- autoplot(IGP_DI_mes, main = "Variação % a.m")
+g1 + g2
+
+# Vamos anualizar a série usando dummies de sazonalidade:
+
+SEASON <- seasonaldummy(IGP_DI_INDEX_mes)%>%as.data.frame()
+SEASON$Dec <- (1 - SEASON%>%apply(1,sum))
+SEASON$IGP_DI_INDEX_mes <- IGP_DI_INDEX_mes
+
+IGP_DI_ANUAL <- SEASON%>%filter(Dec==1)%>%
+  dplyr::select(IGP_DI_INDEX_mes)%>%
+  `colnames<-`('IGP_DI_ANUAL')%>%
+  ts(frequency = 1,start = c(1961))
+
+
+IGP_DI_TRIM  <- SEASON%>%filter(Mar==1|
+                                Jun==1|
+                                Sep==1|
+                                Dec==1
+                           )%>%
+  dplyr::select(IGP_DI_INDEX_mes)%>%
+  `colnames<-`('IGP_DI_TRIM')%>%
+  ts(frequency = 4,start = start(IGP_DI_INDEX_mes))
+
+IGP_DI_ANUAL <- IGP_DI_ANUAL%>%window(start=start(PIB_anual),end=end(PIB_anual))  
+PIB_ANUAL_REAL_IGP <- (PIB_anual*IGP_DI_ANUAL[length(IGP_DI_ANUAL)]/IGP_DI_ANUAL)%>%
+  ts(frequency = 1,start = c(1962,1))
+
+
+graf01 <- IGP_DI_ANUAL|>autoplot() + ylab("IGP-DI")
+graf02 <- (IGP_DI_ANUAL[length(IGP_DI_ANUAL)]/IGP_DI_ANUAL)|>autoplot() 
++ ylab("Deflator")
+graf03 <- PIB_anual|>window()|>autoplot(color="red") + ylab("PIB Nominal, R$")
+graf04 <- PIB_ANUAL_REAL_IGP|>autoplot(color="blue")  + ylab("PIB Real, R$")
+
+graf01 + graf03 + graf02 + graf04
+
+
+fUnitRoots::urdfTest(PIB_ANUAL_REAL_IGP) -> ur01
+
+
+# Regressão espúria -------------------------------------------------------
+
+
+# Download  stockholm stock exchange index data since 2010
+getSymbols("^OMX", src = "yahoo", from = "2010-01-01")
+
+# Convert daily data to quarterly data
+OMX_quarterly <- to.quarterly(OMX, OHLC = FALSE, drop = TRUE)
+OMX_quarterly|>class()
+plot(OMX_quarterly)
+
+data <- merge(OMX_quarterly[ , 4, drop = FALSE], PIB_trim_desaz, join = "inner")
+
+par(mfrow=c(1,1))
+par(mar = c(5, 4, 4, 6))
+plot.ts(data$OMX.Close, main = "OMX vs. GDP", ylab = "OMX.Close", xlab = "")
+par(new = TRUE)
+plot.ts(data$PIB_trim_desaz, ylab = "GDP", xlab = "", axes = FALSE)
+axis(side = 4, at = pretty(range(data$PIB_trim_desaz)))
+mtext("GDP", side = 4, line = 3)
+legend("topleft", legend = c("OMX.Close", "GDP"), lty = 1, col = c(1, 2))
+
+# Regress OMX on GDP
+reg <- lm(OMX.Close ~ PIB_trim_desaz, data = data)
+
+# Print regression summary
+summary(reg)
+reg$residuals|>plot(type="l")
+# Test for unit roots in the residuals
+adf.test(reg$residuals)
