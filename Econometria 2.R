@@ -341,7 +341,7 @@ uschange %>%
   CPI_index <- ts(CPI_index,start = c(2000,01),frequency = 12)
   
   par(mfrow=c(2,1));plot(IPCA_index);plot(CPI_index,col=2)
-  PPP <- IPCA_index/CPI_index
+  PPP <- CPI_index/IPCA_index
   Cambio_atual <- ts(Cambio_atual$value,frequency = 12,start = c(2000,01))
   par(mfrow=c(2,1));plot(PPP);plot(Cambio_atual)
   
