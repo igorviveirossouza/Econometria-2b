@@ -319,7 +319,7 @@ uschange %>%
 
   # Para acessar os dados do FRED você deve gerar sua própria
   # API no site 
-  API.key <- '76489ce521ce14d034d9fc261e24dc30'
+  API.key <- 'Cole sua chave aqui'
   fredr_set_key(API.key)
   
   fredr(
@@ -759,7 +759,7 @@ fUnitRoots::urdfTest(PIB_ANUAL_REAL_IGP) -> ur01
 # Regressão espúria -------------------------------------------------------
 
 
-# Download  stockholm stock exchange index data since 2010
+# Download  Stockholm stock exchange index data since 2010
 getSymbols("^OMX", src = "yahoo", from = "2010-01-01")
 
 # Convert daily data to quarterly data
