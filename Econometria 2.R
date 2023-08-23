@@ -144,6 +144,9 @@ uschange %>%
 
   data("USMacroG")
   head(USMacroG)
+  class(USMacroG)
+  
+  autoplot(USMacroG)
   
   consump1 <- dynlm(consumption ~ dpi + L(dpi),data = USMacroG)
   consump2 <- dynlm(consumption ~ dpi + L(consumption), data = USMacroG)
@@ -160,6 +163,11 @@ uschange %>%
        lwd=c(4,2,3,1,1,1), main = "")
   
   par(mfrow=c(1,2))
+  
+  atp1 <- residuals(consump1) |> autoplot(main="modelo 1", colour = "red",lwd=1.5)
+  atp2 <- residuals(consump2) |> autoplot(main="modelo 2", colour = "blue",lwd=1.5)
+  atp1 + atp2
+
   acf(residuals(consump1),col='darkred'); acf(residuals(consump2),col='darkblue')
   
   # Teste de seleção de modelos não aninhados: Encompassing Test
@@ -170,7 +178,7 @@ uschange %>%
   
   cons_lmE <- dynlm(consumption ~ dpi + L(dpi) + L(consumption), data = USMacroG)
   tab_model(consump1,consump2,cons_lmE, title = "Modelo para o consumo",
-            show.ci = F, dv.labels = c("modelo 1",'modelo 2'), digits = 5)
+            show.ci = F, dv.labels = c("modelo 1",'modelo 2','modelo 3'), digits = 5)
   
   NEWDATA2 <- merge(as.zoo(USMacroG[,"consumption"]), fitted(consump1),
                    fitted(consump2),fitted(cons_lmE), 0, residuals(consump1), 
@@ -179,6 +187,8 @@ uschange %>%
   plot(NEWDATA2, screens = rep(1:2, c(4, 4)), col = rep(c(1, 'darkred', 
       'darkblue','orange'), 2), xlab = "Time", 
       ylab = c("Fitted values", "Residuals"), lwd=c(4,2,3,1,1,1), main = "")
+
+### Autocorrelação -------------------------------------------------------------  
   
   par(mfrow=c(1,3))
   acf(residuals(consump1),col='darkred',lwd=3) 
@@ -189,23 +199,40 @@ uschange %>%
   
   bgtest(consump1,order=1); bgtest(consump2,order=1); bgtest(cons_lmE,order=1)
   
+  # Durbin- Watson não deveria ser usado nos modelos 2 e lmE
   dwtest(consump1);  dwtest(consump2);  dwtest(cons_lmE)
   
-  Box.test(residuals(consump1), type = "Ljung-Box")
-  Box.test(residuals(consump2), type = "Ljung-Box")
-  Box.test(residuals(cons_lmE), type = "Ljung-Box")
+  Box.test(residuals(consump1), type = "Ljung-Box",lag = 1)
+  Box.test(residuals(consump2), type = "Ljung-Box",lag = 1)
+  Box.test(residuals(cons_lmE), type = "Ljung-Box",lag = 1)
+
+  Box.test(residuals(consump1), type = "Ljung-Box",lag = 2)
+  Box.test(residuals(consump2), type = "Ljung-Box",lag = 2)
+  Box.test(residuals(cons_lmE), type = "Ljung-Box",lag = 2)
   
   
+### Heterocedasticidade --------------------------------------------------------
+  par(mfrow=c(1,2))
+  plot(resid(consump2)^2) ; plot(resid(cons_lmE)^2)
+  
+  # Testar a presença de heterocedasticidade:
+  bptest(consump2) # Bresuch-Pagan Teste
+  gqtest(consump2) # Goldfeld-Quandt teste
+  
+  bptest(cons_lmE) # Bresuch-Pagan Teste
+  gqtest(cons_lmE) # Goldfeld-Quandt teste
   
   
   rbind(SE = sqrt(diag(vcov(consump2))),
         QS = sqrt(diag(kernHAC(consump2))),
         NW = sqrt(diag(NeweyWest(consump2))))
 
-  coeftest(consump2,vcov=NeweyWest(consump2))
-## Inflação vs câmbio ------------------------------------------------------
+  coeftest(consump2,vcov = NeweyWest(consump2))
+  
+## Inflação vs câmbio ----------------------------------------------------------
+
   SEARCH <- BETSsearch(periodicity = "M", view = FALSE)
-    
+  
   IPCA_atual   <- BETSget(code=c(433),  from = "2000-01-01")
   Cambio_atual <- BETSget(code=c(3695), from = "2000-01-01")
   
@@ -226,7 +253,9 @@ uschange %>%
   acf( na.remove(INFLA_BR) )
   
   # Inflação vs câmbio: sem relação? resultado incoerente?
+  
   dynlm(ipca~diff(cambio),data=INFLA_BR)%>%summary()
+  
   # Hipótese: Variações cambiais antecipam a variação de IPCA: inflação reage ao
   # dólar defasadamente, vejamos graficamente:
   
@@ -237,6 +266,7 @@ uschange %>%
   par(new=T); plot(INFLA_BR[,'d.cambio'],ylim=ylim, col='red',lwd=2)
   
   # Médias móveis padronizadas:
+  
   MA_IPCA <- na.remove(ma(INFLA_BR[,'ipca'], order=12,centre = F))
   MA_IPCA <- (MA_IPCA-mean(MA_IPCA))/sd(MA_IPCA)
   MA_USDL <- na.remove(ma(INFLA_BR[,'d.cambio'], order=12,centre = F))
@@ -244,7 +274,7 @@ uschange %>%
     
   ylim = c(1.05*min(MA_IPCA,MA_USDL),1.05*max(MA_IPCA,MA_USDL))
   
-  plot(MA_IPCA,ylim=ylim);par(new=T);plot(MA_USDL,ylim=ylim,col=2)
+  plot(MA_IPCA,ylim=ylim);par(new=T);plot(MA_USDL,ylim=ylim,col='red')
   
   (mod01 <- dynlm(ipca~d.cambio+L(d.cambio)+ L(d.cambio,2) + L(d.cambio,3) + 
                  L(d.cambio,4) + L(d.cambio,5) + L(d.cambio,6), 
@@ -272,8 +302,9 @@ uschange %>%
   bgtest(mod02)
   Box.test(residuals(mod02), type = "Ljung-Box")
   
-    # Testar a presença de heterocedasticidade:
+  # Testar a presença de heterocedasticidade:
   plot(resid(mod02))
+  plot(resid(mod02)^2)
   
   bptest(mod02) # Bresuch-Pagan Teste
   gqtest(mod02) # Goldfeld-Quandt teste
@@ -293,9 +324,17 @@ uschange %>%
   reset(mod03)
   (mod04 <- update(mod03, ~ .  + L(ipca,3)))%>%summary()
   reset(mod04)
-  (mod04 <- update(mod03, ~ .  + L(ipca,3)))%>%summary()
-  reset(mod04)
-  
+  (mod05 <- update(mod04, ~ .  + L(ipca,4)))%>%summary()
+  reset(mod05)
+  (mod06 <- update(mod05, ~ .  + L(ipca,5)))%>%summary()
+  reset(mod06)
+  (mod07 <- update(mod06, ~ .  + L(ipca,6)))%>%summary()
+  reset(mod07)
+
+  (mod08 <- update(mod04, ~ .  + season(ipca)))%>%summary()
+  reset(mod08)
+
+
   #BOX-JENKINS para IPCA:
   plot(IPCA_atual)
   par(mfrow=c(1,2))
